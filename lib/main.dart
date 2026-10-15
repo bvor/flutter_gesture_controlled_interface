@@ -1,121 +1,251 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const StudyListApp());
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class StudyListApp extends StatelessWidget {
+  const StudyListApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Study List',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F63C8)),
+        scaffoldBackgroundColor: const Color(0xFFF6F7FC),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const StudyListPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class StudyTask {
+  StudyTask(this.id, this.title, this.subtitle, {this.done = false, this.pinned = false});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
+  final int id;
   final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  final String subtitle;
+  bool done;
+  bool pinned;
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class StudyListPage extends StatefulWidget {
+  const StudyListPage({super.key});
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  State<StudyListPage> createState() => _StudyListPageState();
+}
+
+class _StudyListPageState extends State<StudyListPage> {
+  List<StudyTask> tasks = _starterTasks();
+
+  static List<StudyTask> _starterTasks() => [
+    StudyTask(1, 'Read Chapter 5', 'Review gesture basics'),
+    StudyTask(2, 'Practice Flutter', 'Try GestureDetector'),
+    StudyTask(3, 'Review lecture notes', 'Prepare for next class'),
+  ];
+
+  void _toggleDone(StudyTask task) {
+    HapticFeedback.selectionClick();
+    setState(() => task.done = !task.done);
+  }
+
+  void _togglePin(StudyTask task) {
+    HapticFeedback.mediumImpact();
+    setState(() => task.pinned = !task.pinned);
+    _showMessage(task.pinned ? 'Pinned: ${task.title}' : 'Unpinned: ${task.title}');
+  }
+
+  void _showMessage(String message, {SnackBarAction? action}) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(message),
+      action: action,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  void _archive(StudyTask task) {
+    final oldIndex = tasks.indexWhere((item) => item.id == task.id);
+    if (oldIndex == -1) return;
+
+    setState(() => tasks.removeAt(oldIndex));
+    _showMessage('${task.title} archived', action: SnackBarAction(
+      label: 'UNDO',
+      onPressed: () {
+        setState(() => tasks.insert((oldIndex < tasks.length ? oldIndex : tasks.length), task));
+      },
+    ));
+  }
+
+  void _reset() {
+    setState(() => tasks = _starterTasks());
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final completed = tasks.where((task) => task.done).length;
+    final progress = tasks.isEmpty ? 0.0 : completed / tasks.length;
+
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        backgroundColor: const Color(0xFFF6F7FC),
+        title: const Text('My study list', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton.icon(
+            onPressed: _reset,
+            icon: const Icon(Icons.restart_alt, size: 19),
+            label: const Text('Reset'),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4257BB),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('A little progress every day',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 9),
+                  Text('$completed of ${tasks.length} tasks done',
+                    style: const TextStyle(color: Color(0xFFE4E9FF), fontSize: 15)),
+                  const SizedBox(height: 17),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 9,
+                      color: const Color(0xFFBFE7D6),
+                      backgroundColor: const Color(0xFF7081CF),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text('TODAY', style: TextStyle(fontWeight: FontWeight.bold,
+              letterSpacing: 1.5, color: Color(0xFF586078))),
+            const SizedBox(height: 12),
+            if (tasks.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(25),
+                decoration: BoxDecoration(color: Colors.white,
+                  borderRadius: BorderRadius.circular(18)),
+                child: const Column(children: [
+                  Icon(Icons.inbox_outlined, size: 40, color: Color(0xFF4F63C8)),
+                  SizedBox(height: 10),
+                  Text('All tasks archived', style: TextStyle(fontSize: 17,
+                    fontWeight: FontWeight.w600)),
+                  SizedBox(height: 6),
+                  Text('Tap Reset to try the gestures again.'),
+                ]),
+              )
+            else
+              ...tasks.map(_taskCard),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE9EDFC),
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TRY THESE GESTURES', style: TextStyle(
+                    color: Color(0xFF36499B), fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  SizedBox(height: 9),
+                  Text('Tap a task  •  Mark it complete'),
+                  SizedBox(height: 5),
+                  Text('Press and hold  •  Pin or unpin'),
+                  SizedBox(height: 5),
+                  Text('Swipe left  •  Archive (Undo available)'),
+                ],
+              ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _taskCard(StudyTask task) {
+    return Dismissible(
+      key: ValueKey(task.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(right: 25),
+        alignment: Alignment.centerRight,
+        decoration: BoxDecoration(color: const Color(0xFFE67B73),
+          borderRadius: BorderRadius.circular(17)),
+        child: const Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          Icon(Icons.archive_outlined, color: Colors.white),
+          SizedBox(width: 7),
+          Text('Archive', style: TextStyle(color: Colors.white,
+            fontWeight: FontWeight.bold)),
+        ]),
+      ),
+      onDismissed: (_) => _archive(task),
+      child: Semantics(
+        button: true,
+        label: task.title,
+        hint: 'Tap to toggle completion. Long press to pin. Swipe left to archive.',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => _toggleDone(task),
+          onLongPress: () => _togglePin(task),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: task.done ? const Color(0xFFE8F7EF) : Colors.white,
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: task.done
+                ? const Color(0xFF8BC9A6) : const Color(0xFFE3E6F0)),
+            ),
+            child: Row(children: [
+              Icon(task.done ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: task.done ? const Color(0xFF24925B) : const Color(0xFF8792B2),
+                size: 26),
+              const SizedBox(width: 13),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(task.title, style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600,
+                    decoration: task.done ? TextDecoration.lineThrough : null)),
+                  const SizedBox(height: 4),
+                  Text(task.subtitle, style: const TextStyle(
+                    color: Color(0xFF6C748A), fontSize: 13)),
+                  if (task.pinned) ...[
+                    const SizedBox(height: 7),
+                    const Text('★ Pinned', style: TextStyle(
+                      color: Color(0xFFAA7420), fontWeight: FontWeight.bold, fontSize: 12)),
+                  ],
+                ],
+              )),
+              if (task.pinned)
+                const Icon(Icons.push_pin, color: Color(0xFFBB8429), size: 21)
+              else
+                const Icon(Icons.chevron_left, color: Color(0xFFC5CAD9)),
+            ]),
+          ),
+        ),
       ),
     );
   }
